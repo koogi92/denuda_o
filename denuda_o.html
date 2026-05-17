@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데누다(Denuda) 발성 훈련</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); background-color: #3b82f6; }
+            50% { transform: scale(1.5); background-color: #10b981; }
+        }
+        .breathing-circle {
+            animation: breathe 8s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col justify-between">
+
+    <header class="p-5 text-center border-b border-slate-800 bg-slate-900/80 sticky top-0 backdrop-blur">
+        <h1 class="text-2xl font-black tracking-wider text-emerald-400">DENUDA</h1>
+        <p class="text-xs text-slate-400 mt-1">명품 공명 발성공법 시스템</p>
+    </header>
+
+    <main class="flex-1 p-6 flex flex-col justify-center items-center max-w-md mx-auto w-full space-y-8">
+        
+        <!-- 1단계: 호흡 가이드 -->
+        <section id="step-breathing" class="w-full text-center space-y-6">
+            <h2 class="text-xl font-bold">1단계: 데누다 단전 호흡</h2>
+            <p class="text-sm text-slate-300">원이 <span class="text-emerald-400 font-bold">커질 때 숨을 들이쉬고</span>, <span class="text-blue-400 font-bold">작아질 때 뱉으세요</span>.</p>
+            
+            <div class="h-48 flex items-center justify-center">
+                <div class="breathing-circle w-24 h-24 rounded-full flex items-center justify-center text-sm font-bold shadow-lg shadow-emerald-500/20">
+                    호흡 조절
+                </div>
+            </div>
+        </section>
+
+        <!-- 2단계: 공명 및 발성 체크 (마이크 연동) -->
+        <section id="step-resonance" class="w-full text-center space-y-4 hidden">
+            <h2 class="text-xl font-bold">2단계: 실시간 공명 분석</h2>
+            <p class="text-sm text-slate-300">"아-" 소리를 내어 소리가 중심에서 울리는지 확인하세요.</p>
+            
+            <div class="bg-slate-800 rounded-2xl p-4 h-40 flex items-center justify-center border border-slate-700 relative overflow-hidden">
+                <canvas id="visualizer" class="w-full h-full"></canvas>
+                <div id="mic-prompt" class="absolute inset-0 flex items-center justify-center bg-slate-800/90 cursor-pointer" onclick="startMic()">
+                    <span class="bg-emerald-500 hover:bg-emerald-600 text-slate-900 px-4 py-2 rounded-full font-bold text-sm transition">🎤 마이크 켜고 발성 시작</span>
+                </div>
+            </div>
+            <div class="text-xs text-slate-400" id="status-text">마이크 권한을 허용하면 공명 그래프가 작동합니다.</div>
+        </section>
+
+    </main>
+
+    <nav class="border-t border-slate-800 bg-slate-950 p-4 sticky bottom-0">
+        <div class="flex justify-around max-w-md mx-auto">
+            <button onclick="switchTab('breathing')" id="btn-breathe" class="flex flex-col items-center space-y-1 text-emerald-400 font-bold">
+                <span class="text-xl">🫁</span>
+                <span class="text-xs">호흡 가이드</span>
+            </button>
+            <button onclick="switchTab('resonance')" id="btn-sound" class="flex flex-col items-center space-y-1 text-slate-400">
+                <span class="text-xl">🔊</span>
+                <span class="text-xs">공명 발성</span>
+            </button>
+			<button id="startBtn">음성인식이 안되세요?</button>
+			  <p id="status"></p>
+			  <audio id="audioPlayback" controls></audio>
+
+			  <script>
+				const startBtn = document.getElementById('startBtn');
+				const status = document.getElementById('status');
+				const audioPlayback = document.getElementById('audioPlayback');
+
+				startBtn.addEventListener('click', async () => {
+				  try {
+					// 오디오 권한 요청
+					const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+					status.textContent = "마이크 권한 허용됨!";
+					audioPlayback.srcObject = stream;
+				  } catch (err) {
+					status.textContent = "마이크 권한 거부됨: " + err;
+				  }
+				});
+  </script>
+        </div>
+    </nav>
+
+    <script>
+        function switchTab(tab) {
+            const breathSec = document.getElementById('step-breathing');
+            const resSec = document.getElementById('step-resonance');
+            const btnBreathe = document.getElementById('btn-breathe');
+            const btnSound = document.getElementById('btn-sound');
+
+            if(tab === 'breathing') {
+                breathSec.classList.remove('hidden');
+                resSec.classList.add('hidden');
+                btnBreathe.className = "flex flex-col items-center space-y-1 text-emerald-400 font-bold";
+                btnSound.className = "flex flex-col items-center space-y-1 text-slate-400";
+            } else {
+                breathSec.classList.add('hidden');
+                resSec.classList.remove('hidden');
+                btnBreathe.className = "flex flex-col items-center space-y-1 text-slate-400";
+                btnSound.className = "flex flex-col items-center space-y-1 text-emerald-400 font-bold";
+            }
+        }
+
+        let audioCtx, analyser, dataArray, canvas, canvasCtx, bufferLength;
+
+        function startMic() {
+            navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+            .then(function(stream) {
+                document.getElementById('mic-prompt').classList.add('hidden');
+                document.getElementById('status-text').innerText = "데누다 공명 주파수 분석 중...";
+
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioCtx.createAnalyser();
+                let source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 256;
+                bufferLength = analyser.frequencyBinCount;
+                dataArray = new Uint8Array(bufferLength);
+
+                canvas = document.getElementById('visualizer');
+                canvasCtx = canvas.getContext('2d');
+                drawVisualizer();
+            })
+            .catch(function(err) {
+                alert('마이크 접근 권한이 필요합니다: ' + err);
+            });
+        }
+
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.fillStyle = 'rgb(30, 41, 59)';
+            canvasCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+            let barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for(let i = 0; i < bufferLength; i++) {
+                barHeight = dataArray[i] / 1.5;
+                canvasCtx.fillStyle = `rgb(16, ${barHeight + 100}, 129)`;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                x += barWidth + 1;
+            }
+        }
+    </script>
+</body>
+</html>
